@@ -1,0 +1,9 @@
+ccxt
+finnhub-python
+torch
+transformers
+asyncio
+numpy
+pandas
+fastapi
+uvicorn

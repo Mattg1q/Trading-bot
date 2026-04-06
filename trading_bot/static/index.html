@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-modal Trading Bot Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <header class="header blur-bg">
+            <div class="header-content">
+                <div class="title-group">
+                    <div class="logo"></div>
+                    <h1>Trading Bot Dashboard</h1>
+                </div>
+                <div class="status-group">
+                    <span id="connection-status" class="status-indicator"></span>
+                    <span id="ticker-label" class="badge">Loading...</span>
+                    <span id="paper-trading-label" class="badge paper-badge">Paper Trading</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="grid-layout">
+            <!-- Key Metrics -->
+            <section class="card blur-bg metrics-section">
+                <h2>Key Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Mid Price</span>
+                        <span id="mid-price" class="metric-value">0.00</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Current Signal</span>
+                        <div id="signal-badge" class="signal-badge hold">HOLD</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">LOB SNN Pred</span>
+                        <span id="snn-prediction" class="metric-value">0.0000</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">FinBERT Sent</span>
+                        <span id="sentiment-score" class="metric-value">0.0000</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Account Info -->
+            <section class="card blur-bg account-section">
+                <h2>Account Overview</h2>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Capital</span>
+                        <span id="capital-amount" class="metric-value">$0.00</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Last Position Size</span>
+                        <span id="position-size" class="metric-value">0.0000</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dynamic Controls -->
+            <section class="card blur-bg controls-section">
+                <h2>Bot Controls</h2>
+                <div class="metrics-grid">
+                    <div class="metric-box slider-box">
+                        <div class="slider-header">
+                            <span class="metric-label">Risk Per Trade</span>
+                            <span id="risk-val-display" class="slider-val">1.0%</span>
+                        </div>
+                        <input type="range" id="risk-slider" class="styled-slider" min="0.1" max="5.0" step="0.1"
+                            value="1.0">
+                    </div>
+                    <div class="metric-box slider-box">
+                        <div class="slider-header">
+                            <span class="metric-label">Polling Interval</span>
+                            <span id="poll-val-display" class="slider-val">60s</span>
+                        </div>
+                        <input type="range" id="poll-slider" class="styled-slider" min="10" max="300" step="5"
+                            value="60">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Live Console -->
+            <section class="card blur-bg console-section">
+                <h2>Live Console</h2>
+                <div class="console-window" id="console-window">
+                    <!-- Logs will be appended here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
