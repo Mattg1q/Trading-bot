@@ -93,6 +93,35 @@ class DataHandler:
             logger.error(f"Error fetching futures balance: {e}")
             return None
 
+    async def get_open_position_amount(self):
+        """Return the signed open futures position amount for the configured symbol."""
+        if config.TRADING_MODE != "Demo Futures":
+            return 0.0
+
+        try:
+            await self.exchange.load_markets()
+            market_id = self.exchange.market(self.symbol).get("id")
+            positions = await self.exchange.fetch_positions([self.symbol])
+            for position in positions:
+                info = position.get("info", {})
+                position_symbol = position.get("symbol")
+                position_id = info.get("symbol")
+                if position_symbol not in (self.symbol, f"{self.symbol}:USDT") and position_id != market_id:
+                    continue
+                contracts = position.get("contracts")
+                side = position.get("side")
+                if contracts is None:
+                    contracts = info.get("positionAmt", 0)
+                amount = float(contracts or 0)
+                if side == "short" and amount > 0:
+                    amount *= -1
+                return amount
+        except Exception as e:
+            logger.error(f"Error fetching open position: {e}")
+            return None
+
+        return 0.0
+
     def _build_lob_tensor(self, bids, asks):
         if not bids or not asks:
             return None, None

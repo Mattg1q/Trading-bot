@@ -20,11 +20,19 @@ class Strategy:
         Gating Mechanism: Execution only occurs if sign(SNN_pred) == sign(FinBERT_score).
         Returns +1 for LONG, -1 for SHORT, 0 for HOLD.
         """
+        if config.SIGNAL_MODE == "lob_only":
+            if abs(lob_pred) < config.LOB_SIGNAL_THRESHOLD:
+                return 0
+            return int(np.sign(lob_pred))
+
         lob_sign = np.sign(lob_pred)
         sentiment_sign = np.sign(sentiment_score)
         
         # Add a small threshold to avoid spurious entries due to model noise
-        if abs(lob_pred) < 0.05 or abs(sentiment_score) < 0.05:
+        if (
+            abs(lob_pred) < config.LOB_SIGNAL_THRESHOLD
+            or abs(sentiment_score) < config.SENTIMENT_SIGNAL_THRESHOLD
+        ):
             return 0
             
         if lob_sign == sentiment_sign and lob_sign != 0:

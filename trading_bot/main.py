@@ -177,6 +177,23 @@ async def main_loop():
             
             # Execute execution logic
             if signal != 0:
+                open_position_amount = await data_handler.get_open_position_amount()
+                if open_position_amount is None:
+                    logger.warning("Could not verify current position. Skipping trade to avoid duplicate exposure.")
+                    elapsed = time.time() - start_time
+                    sleep_time = max(0, current_poll - elapsed)
+                    await asyncio.sleep(sleep_time)
+                    continue
+                if abs(open_position_amount) > 0:
+                    logger.info(
+                        f"Signal skipped because an open {TICKER} position already exists: "
+                        f"{open_position_amount:.6f} BTC."
+                    )
+                    elapsed = time.time() - start_time
+                    sleep_time = max(0, current_poll - elapsed)
+                    await asyncio.sleep(sleep_time)
+                    continue
+
                 position_size = strategy.calculate_position_size(mid_price, current_capital)
                 bot_state["position_size"] = position_size
                 if position_size <= 0:

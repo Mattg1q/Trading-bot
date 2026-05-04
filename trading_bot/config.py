@@ -34,6 +34,9 @@ FINNHUB_NEWS_TTL_SECONDS = int(os.getenv("FINNHUB_NEWS_TTL_SECONDS", "300"))
 SNN_WEIGHTS_PATH = os.getenv("SNN_WEIGHTS_PATH", "models/snn_weights.pth")
 ALLOW_UNTRAINED_SNN = os.getenv("ALLOW_UNTRAINED_SNN", "0") == "1"
 REQUIRE_GPU = os.getenv("REQUIRE_GPU", "1") == "1"
+SIGNAL_MODE = os.getenv("SIGNAL_MODE", "consensus").lower()
+LOB_SIGNAL_THRESHOLD = float(os.getenv("LOB_SIGNAL_THRESHOLD", "0.05"))
+SENTIMENT_SIGNAL_THRESHOLD = float(os.getenv("SENTIMENT_SIGNAL_THRESHOLD", "0.05"))
 MIN_PYTHON = (3, 11)
 MAX_PYTHON = (3, 11)
 

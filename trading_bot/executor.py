@@ -58,16 +58,18 @@ class Executor:
             await self._ensure_market_loaded()
             formatted_amount_str = self._format_amount(amount)
             formatted_amount = float(formatted_amount_str)
+            order_side = action.lower()
 
             # 1. Open the main market position
             logger.info(f"Placing Market {action} order for {formatted_amount} {self.symbol}...")
-            order = await self.exchange.create_market_order(self.symbol, action, formatted_amount)
+            order = await self.exchange.create_market_order(self.symbol, order_side, formatted_amount)
             logger.info(f"Market order filled: {order['id']} at ~{order.get('average', order.get('price'))}")
             
             # 2. Place Stop-Loss and Take-Profit orders
             # Binance Futures requires specific params to set these as reduce-only closing orders.
             
             close_action = "SELL" if action == "BUY" else "BUY"
+            close_side = close_action.lower()
             
             # STOP_MARKET for Stop Loss
             sl_params = {
@@ -76,7 +78,7 @@ class Executor:
             }
             logger.info(f"Placing Stop-Loss {close_action} at {sl_price:.2f}")
             await self.exchange.create_order(
-                self.symbol, 'STOP_MARKET', close_action, formatted_amount, None, sl_params
+                self.symbol, 'STOP_MARKET', close_side, formatted_amount, None, sl_params
             )
             
             # TAKE_PROFIT_MARKET for Take Profit
@@ -86,7 +88,7 @@ class Executor:
             }
             logger.info(f"Placing Take-Profit {close_action} at {tp_price:.2f}")
             await self.exchange.create_order(
-                self.symbol, 'TAKE_PROFIT_MARKET', close_action, formatted_amount, None, tp_params
+                self.symbol, 'TAKE_PROFIT_MARKET', close_side, formatted_amount, None, tp_params
             )
             
             logger.info("Trade execution sequence completed successfully.")
