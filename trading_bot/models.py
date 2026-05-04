@@ -50,10 +50,14 @@ class SentimentModel:
     Sentiment Model: A transformers pipeline using ProsusAI/finbert 
     to score Finnhub headlines.
     """
-    def __init__(self):
+    def __init__(self, pipeline_device=-1):
         logger.info("Loading FinBERT sentiment model...")
         try:
-            self.pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
+            self.pipeline = pipeline(
+                "sentiment-analysis",
+                model="ProsusAI/finbert",
+                device=pipeline_device
+            )
             logger.info("FinBERT model loaded.")
         except Exception as e:
             logger.error(f"Failed to load FinBERT model: {e}")
@@ -71,11 +75,12 @@ class SentimentModel:
             results = self.pipeline(headlines)
             score = 0.0
             for res in results:
-                label = res['label']
+                label = res['label'].lower()
+                confidence = float(res.get('score', 1.0))
                 if label == 'positive':
-                    score += 1.0
+                    score += confidence
                 elif label == 'negative':
-                    score -= 1.0
+                    score -= confidence
             
             # Normalize score against the number of valid headlines
             avg_score = score / len(headlines)

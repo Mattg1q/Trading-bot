@@ -3,7 +3,10 @@ finnhub-python
 torch
 transformers
 asyncio
+aiohttp
 numpy
 pandas
 fastapi
 uvicorn
+matplotlib
+scipy

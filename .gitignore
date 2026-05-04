@@ -7,4 +7,6 @@ venv/
 .idea/
 node_modules/
 tmp/
+trading_bot/app_stdout.log
+trading_bot/app_stderr.log
 

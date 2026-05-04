@@ -8,6 +8,8 @@ const sentimentEl = document.getElementById('sentiment-score');
 const capitalEl = document.getElementById('capital-amount');
 const posSizeEl = document.getElementById('position-size');
 const consoleWindow = document.getElementById('console-window');
+const downloadLobBtn = document.getElementById('download-lob-btn');
+const downloadStatus = document.getElementById('download-status');
 
 // Slider Elements
 const riskSlider = document.getElementById('risk-slider');
@@ -152,6 +154,41 @@ async function updateConfig() {
 
 riskSlider.addEventListener('change', updateConfig);
 pollSlider.addEventListener('change', updateConfig);
+
+async function downloadLobCsv() {
+    downloadLobBtn.disabled = true;
+    downloadStatus.textContent = 'Preparing...';
+
+    try {
+        const response = await fetch('/api/download/lob.csv');
+        if (!response.ok) throw new Error('Download request failed');
+
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('Content-Disposition') || '';
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : 'lob_data.csv';
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        downloadStatus.textContent = 'Downloaded';
+    } catch (error) {
+        console.error('Failed to download LOB CSV:', error);
+        downloadStatus.textContent = 'Failed';
+    } finally {
+        downloadLobBtn.disabled = false;
+        setTimeout(() => {
+            downloadStatus.textContent = '';
+        }, 3000);
+    }
+}
+
+downloadLobBtn.addEventListener('click', downloadLobCsv);
 
 // Initial fetch
 fetchState();

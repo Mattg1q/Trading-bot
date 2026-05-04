@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import config
 
 logger = logging.getLogger(__name__)
 
@@ -39,29 +40,35 @@ class Strategy:
         Units = Dollar Risk / Risk Distance
         """
         if not current_capital or current_capital <= 0:
-            logger.warning("Balance returned 0 or failed. Using fallback testing position size: 0.001")
-            return 0.001
+            logger.warning("Balance returned 0 or failed. Skipping trade.")
+            return 0.0
             
-        amount = (current_capital * self.risk_per_trade) / current_price
-        
-        # Clamp to minimum notional value (110 USDT for Binance Futures)
-        amount = max(amount, 110 / current_price)
-        
-        # Exact debug requested by user
         risk_dollar = current_capital * self.risk_per_trade
-        logger.info(f"DEBUG: Risking ${risk_dollar:.0f} ({(self.risk_per_trade * 100):.1f}% of {current_capital:.0f}) -> Target Size: {amount:.3f} BTC.")
-            
-        # Margin Check (Assuming 1x Leverage)
-        required_margin = amount * current_price
-        logger.info(f"Available Margin: {current_capital:.2f} USDT | Required Margin: {required_margin:.2f} USDT")
+        risk_per_btc = current_price * self.stop_loss
+        amount = risk_dollar / risk_per_btc
+
+        min_amount = 110 / current_price
+        if amount < min_amount:
+            logger.warning(
+                "Exact 1% risk size is below Binance minimum notional. "
+                "Skipping trade instead of oversizing risk."
+            )
+            return 0.0
+
+        required_margin = (amount * current_price) / config.LEVERAGE
+        logger.info(
+            f"DEBUG: Risking ${risk_dollar:.2f} ({(self.risk_per_trade * 100):.1f}% of "
+            f"{current_capital:.2f}) with {self.stop_loss * 100:.2f}% SL -> "
+            f"Target Size: {amount:.6f} BTC."
+        )
+        logger.info(
+            f"Available Margin: {current_capital:.2f} USDT | "
+            f"Required Margin @ {config.LEVERAGE}x: {required_margin:.2f} USDT"
+        )
         
         if current_capital < required_margin:
-            logger.warning("Insufficient Margin for calculated sizing. Scaling down to minimum allowed (0.001).")
-            amount = 0.001
-        
-        # Maximum allowed physical size based on available account value (1x leverage max)
-        max_size = current_capital / current_price
-        amount = min(amount, max_size)
+            logger.warning("Insufficient margin for exact 1% risk sizing. Skipping trade.")
+            return 0.0
         
         # Round to 3 decimal places to meet exchange precision requirements
         amount = round(amount, 3)

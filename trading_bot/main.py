@@ -26,7 +26,9 @@ bot_state = {
     "position_size": 0.0,
     "risk_per_trade": 0.01,
     "poll_interval": POLL_INTERVAL,
-    "logs": []
+    "logs": [],
+    "ready": False,
+    "runtime_error": ""
 }
 
 class ListHandler(logging.Handler):
@@ -40,26 +42,76 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
                     handlers=[logging.StreamHandler(sys.stdout), ListHandler()])
 logger = logging.getLogger(__name__)
 
+def _select_torch_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if config.REQUIRE_GPU:
+        raise RuntimeError(
+            "GPU acceleration is required but PyTorch cannot see CUDA. "
+            "Install a CUDA-enabled torch build or set REQUIRE_GPU=0 for local dry-runs."
+        )
+    return torch.device("cpu")
+
+def _load_lob_model(device):
+    weights_path = config.SNN_WEIGHTS_PATH
+    if not os.path.exists(weights_path):
+        if config.ALLOW_UNTRAINED_SNN and config.TRADING_MODE != "Demo Futures":
+            logger.warning(
+                "Using untrained SNN fallback for paper trading only. "
+                "Provide trained weights before enabling Demo Futures."
+            )
+            model = SpatialLOBModel().to(device)
+            model.eval()
+            return model
+        raise RuntimeError(
+            f"Missing trained SNN weights at {weights_path}. "
+            "Set SNN_WEIGHTS_PATH to a valid .pth/.pt checkpoint before trading."
+        )
+
+    model = SpatialLOBModel().to(device)
+    checkpoint = torch.load(weights_path, map_location=device)
+    state_dict = checkpoint.get("state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model
+
 async def main_loop():
+    try:
+        config.validate_python_runtime()
+        config.validate_required_secrets()
+        device = _select_torch_device()
+    except Exception as e:
+        bot_state["runtime_error"] = str(e)
+        bot_state["ready"] = False
+        logger.error(f"Startup validation failed: {e}")
+        return
+
     logger.info("Initializing multi-modal trading bot components...")
+    logger.info(f"Using torch device: {device}")
     
     # Initialize components
     data_handler = DataHandler()
     executor = Executor(data_handler)
-    lob_model = SpatialLOBModel()
-    
-    # If pre-trained weights existed, we would load them here.
-    # e.g., lob_model.load_state_dict(torch.load('weights.pth'))
-    lob_model.eval() # Set to evaluation mode
-    
-    sentiment_model = SentimentModel()
-    strategy = Strategy()
+
+    try:
+        lob_model = _load_lob_model(device)
+        sentiment_model = SentimentModel(pipeline_device=0 if device.type == "cuda" else -1)
+        strategy = Strategy()
+    except Exception as e:
+        bot_state["runtime_error"] = str(e)
+        bot_state["ready"] = False
+        logger.error(f"Model initialization failed: {e}")
+        await data_handler.close()
+        return
     
     # Pre-flight checks and Leverage setup for Futures
     await data_handler.initialize_futures()
+    await data_handler.start_lob_stream()
     
     logger.info(f"Bot initialized. Mode: {config.TRADING_MODE}")
     logger.info(f"Configuration -> Ticker: {TICKER} | Interval: {POLL_INTERVAL}s | Leverage: {config.LEVERAGE}x")
+    bot_state["ready"] = True
+    bot_state["runtime_error"] = ""
     
     try:
         while True:
@@ -84,13 +136,17 @@ async def main_loop():
                 # We skip to the next iteration safely
                 await asyncio.sleep(current_poll)
                 continue
+            if current_capital is None:
+                logger.warning("Failed to fetch account balance. Skipping iteration to avoid unsafe sizing.")
+                await asyncio.sleep(current_poll)
+                continue
                 
             bot_state["capital"] = current_capital
                 
             # Process LOB prediction using the CNN
             with torch.no_grad():
                 # Add batch dimension: [1, 20, 4]
-                lob_input = lob_tensor.unsqueeze(0)
+                lob_input = lob_tensor.unsqueeze(0).to(device)
                 lob_pred_tensor = lob_model(lob_input)
                 lob_pred = lob_pred_tensor.item()
                 
@@ -123,6 +179,12 @@ async def main_loop():
             if signal != 0:
                 position_size = strategy.calculate_position_size(mid_price, current_capital)
                 bot_state["position_size"] = position_size
+                if position_size <= 0:
+                    logger.info("Signal skipped because exact risk sizing is not executable with current balance/settings.")
+                    elapsed = time.time() - start_time
+                    sleep_time = max(0, current_poll - elapsed)
+                    await asyncio.sleep(sleep_time)
+                    continue
                 sl, tp = strategy.calculate_sl_tp(mid_price, signal)
                 action = "BUY" if signal == 1 else "SELL"
                 
