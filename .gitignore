@@ -9,4 +9,6 @@ node_modules/
 tmp/
 trading_bot/app_stdout.log
 trading_bot/app_stderr.log
+trading_bot/data/
+trading_bot/models/
 
